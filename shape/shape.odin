@@ -50,3 +50,23 @@ TetrominoBuilder :: proc(shapeIndex: int, color: rl.Color, x: int, y: int) -> ^T
     return t
 }
 
+Rotate_piece :: proc(shape: [][]int) -> [][]int {
+    rows := len(shape)
+    cols := len(shape[0])
+    
+    // Create a new shape with swapped dimensions
+    new_shape := make([][]int, cols)
+    for i in 0..<cols {
+        new_shape[i] = make([]int, rows)
+    }
+    
+    // Perform the rotation
+    for i in 0..<rows {
+        for j in 0..<cols {
+            new_shape[j][rows-1-i] = shape[i][j]
+        }
+    }
+    
+    return new_shape
+}
+

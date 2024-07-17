@@ -15,7 +15,7 @@ Grid :: struct {
     currentPiece: ^shape.Tetromino,
 }
 
-shapeFallSpeed : f32 = 8.0
+shapeFallSpeed : f32 = 5.0
 globalTimeCounter : f32 = 0.0
 
 GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector2, backgroundColor: rl.Color) -> Grid {
@@ -50,6 +50,11 @@ Update :: proc(g : ^Grid) {
     
     if rl.IsKeyPressed(rl.KeyboardKey.UP) {
         // Rotate the piece
+        clear_cells(g)
+        if !rotate_current_piece(g) {
+            rl.TraceLog(rl.TraceLogLevel.INFO, "rotation not possible")
+        }
+        set_cells(g)
     }
     if rl.IsKeyPressed(rl.KeyboardKey.DOWN) {
         // Drop the piece
@@ -57,7 +62,7 @@ Update :: proc(g : ^Grid) {
     if rl.IsKeyPressed(rl.KeyboardKey.LEFT) {
         clear_cells(g)
         nextX := g.currentPiece.x -1
-        if check_collision(g, nextX, g.currentPiece.y) {
+        if check_collision(g, nextX, g.currentPiece.y, nil) {
             nextX += 1
         }
         g.currentPiece.x = nextX
@@ -66,7 +71,7 @@ Update :: proc(g : ^Grid) {
     if rl.IsKeyPressed(rl.KeyboardKey.RIGHT) {
         clear_cells(g)
         nextX := g.currentPiece.x +1
-        if check_collision(g, nextX, g.currentPiece.y) {
+        if check_collision(g, nextX, g.currentPiece.y, nil) {
             nextX -= 1
         }
         g.currentPiece.x = nextX
@@ -76,7 +81,7 @@ Update :: proc(g : ^Grid) {
     globalTimeCounter += rl.GetFrameTime()
     if globalTimeCounter >= 1/shapeFallSpeed {
         
-        if check_collision(g, g.currentPiece.x, g.currentPiece.y + 1) {
+        if check_collision(g, g.currentPiece.x, g.currentPiece.y + 1, nil) {
             lock_piece(g)
             createNewPiece(g)
         }
@@ -91,6 +96,39 @@ Update :: proc(g : ^Grid) {
     
 }
 
+rotate_current_piece :: proc(g: ^Grid) -> bool {
+    t := g.currentPiece
+    rotated_shape := shape.Rotate_piece(t.shape)
+    
+    // Try rotation in original position
+    if !check_collision(g, t.x, t.y, &shape.Tetromino{shape = rotated_shape, x = t.x, y = t.y}) {
+        t.shape = rotated_shape
+        return true
+    }
+    
+    // Wall kick attempts
+    wall_kicks := [4][2]int{
+        {-1, 0},  // Try moving left
+        {1, 0},   // Try moving right
+        {0, -1},  // Try moving up
+        {-2, 0},  // Try moving two spaces left (for I piece)
+    }
+    
+    for kick in wall_kicks {
+        new_x := t.x + kick[0]
+        new_y := t.y + kick[1]
+        if !check_collision(g, new_x, new_y, &shape.Tetromino{shape = rotated_shape, x = new_x, y = new_y}) {
+            t.shape = rotated_shape
+            t.x = new_x
+            t.y = new_y
+            return true
+        }
+    }
+    
+    return false  // Rotation not possible
+}
+
+
 lock_piece :: proc(g : ^Grid) {
     t := g.currentPiece
     for i in 0..< len(t.shape) {
@@ -102,40 +140,22 @@ lock_piece :: proc(g : ^Grid) {
     }
 }
 
-check_collision :: proc(g : ^Grid, x : int, y : int) -> bool {
-    t := g.currentPiece
-    cols := len(t.shape)
-    checks : int = 0
-    for row in 0..< cols{
-        rows := len(t.shape[row])
-        for col in 0..< rows {
-            checks += 1
-            rl.TraceLog(rl.TraceLogLevel.INFO, "i: %d, j: %d", row, col)
-            cell := t.shape[row][col]
-            newX := x + row
-            newY := y + col
-            // gridCell := -1
-            // if newX > 0 && newX < g.width && newY > 0 && newY < g.height {
-            //     gridCell = g.cells[newY][newY]
-            // }  
-            rl.TraceLog(rl.TraceLogLevel.INFO, "cell: %d", cell)
-            rl.TraceLog(rl.TraceLogLevel.INFO, "newX: %d, newY %d", newX, newY)         
-            if cell == 1 {    
-                //gridce
-                if newX < 0 || newX >= g.width {
-                    return true
+check_collision :: proc(g: ^Grid, x: int, y: int, piece: ^shape.Tetromino) -> bool {
+    t := piece if piece != nil else g.currentPiece
+    for row in 0..< len(t.shape) {
+        for col in 0..< len(t.shape[row]) {
+            if t.shape[row][col] == 1 {
+                newX := x + row
+                newY := y + col
+                if newX < 0 || newX >= g.width || newY >= g.height {
+                    return true  // Out of bounds
                 }
-                if newY < 0 || newY >= g.height {
-                    return true
-                }
-                if g.cells[newX][newY] == 2 {
-                    rl.TraceLog(rl.TraceLogLevel.ERROR, "collision")
-                    return true
+                if newY >= 0 && g.cells[newX][newY] == 2 {
+                    return true  // Collision with locked piece
                 }
             }
         }
     }
-    rl.TraceLog(rl.TraceLogLevel.INFO, "checks: %d", checks)
     return false
 }
 
