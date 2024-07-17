@@ -15,7 +15,7 @@ Grid :: struct {
     currentPiece: ^shape.Tetromino,
 }
 
-shapeFallSpeed : f32 = 5.0
+shapeFallSpeed : f32 = 8.0
 globalTimeCounter : f32 = 0.0
 
 GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector2, backgroundColor: rl.Color) -> Grid {
@@ -39,8 +39,7 @@ GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector
 
 createNewPiece :: proc(g : ^Grid) {
     free(g.currentPiece)
-    // opt := rand.int_max(len(shape.SHAPES))
-    opt := rand.int_max(2) + len(shape.SHAPES) - 2
+    opt := rand.int_max(len(shape.SHAPES))
     t := shape.TetrominoBuilder(opt, rl.RED, 5, 0)
     g.currentPiece = t
 }
@@ -105,17 +104,38 @@ lock_piece :: proc(g : ^Grid) {
 
 check_collision :: proc(g : ^Grid, x : int, y : int) -> bool {
     t := g.currentPiece
-    for i in 0..< len(t.shape) {
-        for j in 0..< len(t.shape[i]) {
-            if t.shape[i][j] == 1 {
-                newX := x + i
-                newY := y + j
-                if newX < 0 || newX >= g.width || newY < 0 || newY >= g.height || g.cells[newX][newY] == 2 {
+    cols := len(t.shape)
+    checks : int = 0
+    for row in 0..< cols{
+        rows := len(t.shape[row])
+        for col in 0..< rows {
+            checks += 1
+            rl.TraceLog(rl.TraceLogLevel.INFO, "i: %d, j: %d", row, col)
+            cell := t.shape[row][col]
+            newX := x + row
+            newY := y + col
+            // gridCell := -1
+            // if newX > 0 && newX < g.width && newY > 0 && newY < g.height {
+            //     gridCell = g.cells[newY][newY]
+            // }  
+            rl.TraceLog(rl.TraceLogLevel.INFO, "cell: %d", cell)
+            rl.TraceLog(rl.TraceLogLevel.INFO, "newX: %d, newY %d", newX, newY)         
+            if cell == 1 {    
+                //gridce
+                if newX < 0 || newX >= g.width {
+                    return true
+                }
+                if newY < 0 || newY >= g.height {
+                    return true
+                }
+                if g.cells[newX][newY] == 2 {
+                    rl.TraceLog(rl.TraceLogLevel.ERROR, "collision")
                     return true
                 }
             }
         }
     }
+    rl.TraceLog(rl.TraceLogLevel.INFO, "checks: %d", checks)
     return false
 }
 
@@ -134,7 +154,9 @@ set_cells :: proc(g : ^Grid) {
     t := g.currentPiece
     for i in 0..< len(t.shape) {
         for j in 0..< len(t.shape[i]) {
-            g.cells[i + t.x][j + t.y] = t.shape[i][j]
+            if t.shape[i][j] == 1{
+                g.cells[i + t.x][j + t.y] = t.shape[i][j]
+            }
         }
     }
 }
@@ -143,17 +165,17 @@ set_cells :: proc(g : ^Grid) {
 // Draw the grid
 Draw :: proc(g : ^Grid) {
 
-    for i in 0..<g.width {
-        for j in 0..<g.height {
+    for col in 0..<g.width {
+        for row in 0..<g.height {
             color := rl.DARKGRAY
-            if g.cells[i][j] == 1 {
+            if g.cells[col][row] == 1 {
                 color = rl.LIGHTGRAY
             }
-            if g.cells[i][j] == 2 {
+            if g.cells[col][row] == 2 {
                 color = rl.GRAY
             }
-            rl.DrawRectangle(i32(g.offset.x + f32(i * g.blockSize)), 
-            i32(g.offset.y + f32(j * g.blockSize)), 
+            rl.DrawRectangle(i32(g.offset.x + f32(col * g.blockSize)), 
+            i32(g.offset.y + f32(row * g.blockSize)), 
             i32(g.blockSize -1), 
             i32(g.blockSize -1), 
             color)
