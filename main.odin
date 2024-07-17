@@ -30,6 +30,7 @@ main :: proc()
         rl.ClearBackground(rl.RAYWHITE)
 
         rl.DrawText("Congrats! You created your first window!", 190, 200, 20, rl.LIGHTGRAY)
+        grid.Update(&gridI)
         grid.Draw(&gridI)
         rl.EndDrawing()
     }

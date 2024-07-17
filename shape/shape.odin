@@ -21,7 +21,7 @@ SHAPES :: [][][]bool{
     {{false, true, true}, {true, true, false}},
 }
 
-TetrominoBuilder :: proc(shapeIndex: int, color: rl.Color, x: int, y: int) -> Tetromino {
+TetrominoBuilder :: proc(shapeIndex: int, color: rl.Color, x: int, y: int) -> ^Tetromino {
     shapes := SHAPES
     s := make([][]bool, len(shapes[shapeIndex]))
     for i in 0..< len(shapes[shapeIndex]) {
@@ -30,17 +30,23 @@ TetrominoBuilder :: proc(shapeIndex: int, color: rl.Color, x: int, y: int) -> Te
             s[i][j] = shapes[shapeIndex][i][j]
         }
     }
-    result := Tetromino{
-        shape = s,
-        color = color,
-        x = x,
-        y = y,
-    }
+    t := new(Tetromino)
+    t.shape = s
+    t.color = color
+    t.x = x
+    t.y = y
+    // t := &Tetromino{
+    //     shape = s,
+    //     color = color,
+    //     x = x,
+    //     y = y,
+    // }
     for i in 0..< len(s) {
         for j in 0..< len(s[i]) {
             row := s[i]
             rl.TraceLog(rl.TraceLogLevel.INFO, "cell: %b", row[j])
         }
     }
-    return result
+    return t
 }
+
