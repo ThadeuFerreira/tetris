@@ -8,14 +8,29 @@ import "../shape"
 Grid :: struct {
     width, height: int,
     blockSize: int,
-    cells: [][]int,
+    cells: [][]GridCell,
     offset: rl.Vector2,
 
     backgroundColor: rl.Color,
     currentPiece: ^shape.Tetromino,
 }
 
-shapeFallSpeed : f32 = 5.0
+GridCell :: struct {
+    value: int,
+    color: rl.Color,
+}
+
+COLOR_LIST :: []rl.Color{
+    rl.RED,
+    rl.BLUE,
+    rl.GREEN,
+    rl.ORANGE,
+    rl.PURPLE,
+    rl.YELLOW,
+    rl.MAGENTA,
+}
+
+shapeFallSpeed : f32 = 8.0
 globalTimeCounter : f32 = 0.0
 
 GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector2, backgroundColor: rl.Color) -> Grid {
@@ -27,9 +42,9 @@ GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector
         backgroundColor = backgroundColor,
     }
     createNewPiece(&result)
-    cells := make([][]int, width)
+    cells := make([][]GridCell, width)
     for i in 0..< width {
-        cells[i] = make([]int, height)
+        cells[i] = make([]GridCell, height)
     }
 
     result.cells = cells
@@ -38,9 +53,16 @@ GridBuilder :: proc(width : int, height : int, blockSize: int, offset: rl.Vector
 }
 
 createNewPiece :: proc(g : ^Grid) {
+    colors := COLOR_LIST
     free(g.currentPiece)
-    opt := rand.int_max(len(shape.SHAPES))
-    t := shape.TetrominoBuilder(opt, rl.RED, 5, 0)
+    opt_shape := rand.int_max(len(shape.SHAPES))
+
+    apply_rotation := rand.int_max(2)==1? true: false
+    opt_color := colors[rand.int_max(len(colors))]
+    t := shape.TetrominoBuilder(opt_shape, opt_color, 5, 0)
+    if apply_rotation {
+        shape.Rotate_piece(t.shape)
+    }
     g.currentPiece = t
 }
 
@@ -50,7 +72,7 @@ Update :: proc(g : ^Grid) {
     
     if rl.IsKeyPressed(rl.KeyboardKey.UP) {
         // Rotate the piece
-        clear_cells(g)
+        reset_cells(g)
         if !rotate_current_piece(g) {
             rl.TraceLog(rl.TraceLogLevel.INFO, "rotation not possible")
         }
@@ -60,7 +82,7 @@ Update :: proc(g : ^Grid) {
         // Drop the piece
     }
     if rl.IsKeyPressed(rl.KeyboardKey.LEFT) {
-        clear_cells(g)
+        reset_cells(g)
         nextX := g.currentPiece.x -1
         if check_collision(g, nextX, g.currentPiece.y, nil) {
             nextX += 1
@@ -69,7 +91,7 @@ Update :: proc(g : ^Grid) {
         set_cells(g)
     }
     if rl.IsKeyPressed(rl.KeyboardKey.RIGHT) {
-        clear_cells(g)
+        reset_cells(g)
         nextX := g.currentPiece.x +1
         if check_collision(g, nextX, g.currentPiece.y, nil) {
             nextX -= 1
@@ -86,7 +108,7 @@ Update :: proc(g : ^Grid) {
             createNewPiece(g)
         }
         else{
-            clear_cells(g)
+            reset_cells(g)
             currentY := g.currentPiece.y
             g.currentPiece.y = currentY + 1
             globalTimeCounter = 0.0
@@ -134,10 +156,12 @@ lock_piece :: proc(g : ^Grid) {
     for i in 0..< len(t.shape) {
         for j in 0..< len(t.shape[i]) {
             if t.shape[i][j] == 1 {
-                g.cells[i + t.x][j + t.y] = 2
+                g.cells[i + t.x][j + t.y].value = 2
+                g.cells[i + t.x][j + t.y].color = t.color
             }
         }
     }
+    clear_rows(g)
 }
 
 check_collision :: proc(g: ^Grid, x: int, y: int, piece: ^shape.Tetromino) -> bool {
@@ -150,7 +174,7 @@ check_collision :: proc(g: ^Grid, x: int, y: int, piece: ^shape.Tetromino) -> bo
                 if newX < 0 || newX >= g.width || newY >= g.height {
                     return true  // Out of bounds
                 }
-                if newY >= 0 && g.cells[newX][newY] == 2 {
+                if newY >= 0 && g.cells[newX][newY].value == 2 {
                     return true  // Collision with locked piece
                 }
             }
@@ -159,12 +183,12 @@ check_collision :: proc(g: ^Grid, x: int, y: int, piece: ^shape.Tetromino) -> bo
     return false
 }
 
-clear_cells :: proc(g : ^Grid) {
+reset_cells :: proc(g : ^Grid) {
     t := g.currentPiece
     for i in 0..< len(t.shape) {
         for j in 0..< len(t.shape[i]) {
             if t.shape[i][j] == 1{
-                g.cells[i + t.x][j + t.y] = 0
+                g.cells[i + t.x][j + t.y].value = 0
             }
         }
     }
@@ -175,10 +199,72 @@ set_cells :: proc(g : ^Grid) {
     for i in 0..< len(t.shape) {
         for j in 0..< len(t.shape[i]) {
             if t.shape[i][j] == 1{
-                g.cells[i + t.x][j + t.y] = t.shape[i][j]
+                g.cells[i + t.x][j + t.y].value = t.shape[i][j]
             }
         }
     }
+}
+
+clear_rows :: proc(g : ^Grid) {
+    lines_to_clear := make([]bool, g.height)
+    defer delete(lines_to_clear)
+    
+    // Identify full rows
+    for row in 0..< g.height {
+        full := true
+        for col in 0..< g.width {
+            if g.cells[col][row].value != 2 {
+                full = false
+                break
+            }
+        }
+        lines_to_clear[row] = full
+    }
+
+    // Count how many lines to clear
+    lines_cleared := 0
+    for row in 0..< g.height {
+        if lines_to_clear[row] {
+            lines_cleared += 1
+        }
+    }
+
+    // If no lines to clear, return early
+    if lines_cleared == 0 {
+        return
+    }
+
+    // Create new grid and copy non-cleared lines
+    new_cells := make([][]GridCell, g.width)
+    for i in 0..< g.width {
+        new_cells[i] = make([]GridCell, g.height)
+    }
+
+    new_row := g.height - 1
+    for row := g.height - 1; row >= 0; row -= 1 {
+        if !lines_to_clear[row] {
+            for col in 0..< g.width {
+                new_cells[col][new_row] = g.cells[col][row]
+            }
+            new_row -= 1
+        }
+    }
+
+    // Fill the top rows with empty cells
+    for row in 0..< lines_cleared {
+        for col in 0..< g.width {
+            new_cells[col][row] = GridCell{value = 0, color = rl.DARKGRAY}
+        }
+    }
+
+    // Replace the old grid with the new one
+    for col in 0..< g.width {
+        delete(g.cells[col])
+    }
+    delete(g.cells)
+    g.cells = new_cells
+
+    rl.TraceLog(rl.TraceLogLevel.INFO, "Cleared %d lines", lines_cleared)
 }
 
 
@@ -188,11 +274,11 @@ Draw :: proc(g : ^Grid) {
     for col in 0..<g.width {
         for row in 0..<g.height {
             color := rl.DARKGRAY
-            if g.cells[col][row] == 1 {
-                color = rl.LIGHTGRAY
+            if g.cells[col][row].value == 1 {
+                color = g.currentPiece.color
             }
-            if g.cells[col][row] == 2 {
-                color = rl.GRAY
+            if g.cells[col][row].value == 2 {
+                color = g.cells[col][row].color
             }
             rl.DrawRectangle(i32(g.offset.x + f32(col * g.blockSize)), 
             i32(g.offset.y + f32(row * g.blockSize)), 
