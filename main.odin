@@ -35,6 +35,7 @@ main :: proc()
         
 
         rl.DrawText(rl.TextFormat("SCORE: %i", gridI.points), 520, 100, 40, rl.MAROON);
+        rl.DrawText(rl.TextFormat("HIGH SCORE: %i", gridI.high_score), 520, 150, 20, rl.MAROON);
         rl.DrawText(rl.TextFormat("NEXT PIECE"), 520, 400, 40, rl.MAROON);
         rl.DrawText(rl.TextFormat("LEVEL"), 520, 600, 40, rl.MAROON);
         rl.DrawText(rl.TextFormat("%d", gridI.level), 520, 650, 40, rl.MAROON);

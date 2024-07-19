@@ -17,6 +17,7 @@ Grid :: struct {
     next_piece: ^shape.Tetromino,
 
     points: int,
+    high_score: int,
     fall_speed: f32,
     level: int,
 }
@@ -138,6 +139,7 @@ Update :: proc(g : ^Grid) {
 }
 
 reset_grid :: proc(g : ^Grid) {
+    g.points = 0
     for i in 0..< g.width {
         for j in 0..< g.height {
             g.cells[i][j] = GridCell{value = 0, color = rl.DARKGRAY}
@@ -312,6 +314,9 @@ clear_rows :: proc(g : ^Grid) {
     if g.points >= level_trashold {
         g.level += 1
         g.fall_speed += 0.5
+    }
+    if g.points > g.high_score {
+        g.high_score = g.points
     }
 }
 
