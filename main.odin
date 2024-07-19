@@ -32,6 +32,12 @@ main :: proc()
         rl.DrawText("Congrats! You created your first window!", 190, 200, 20, rl.LIGHTGRAY)
         grid.Update(&gridI)
         grid.Draw(&gridI)
+        
+
+        rl.DrawText(rl.TextFormat("SCORE: %i", gridI.points), 520, 100, 40, rl.MAROON);
+        rl.DrawText(rl.TextFormat("NEXT PIECE"), 520, 400, 40, rl.MAROON);
+        rl.DrawText(rl.TextFormat("LEVEL"), 520, 600, 40, rl.MAROON);
+        rl.DrawText(rl.TextFormat("%d", gridI.level), 520, 650, 40, rl.MAROON);
         rl.EndDrawing()
     }
 
